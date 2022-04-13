@@ -1,22 +1,25 @@
 #include "main.h"
 
 int velCap;
-void myPIDstraight(double targetLeft, double targetRight, int tolerance, double kP, double kI, double kD, int degrees, double time)
+void myPIDstraight(int ticks, int tolerance, double kP, double kI, double kD, int degrees, double time)
 {
 
-    double startTime = pros::millis();
-    double currentTime = pros::millis();
+  int startTime = pros::millis();
+  int currentTime = pros::millis();
 
-    double deltaTime = currentTime - startTime;
+  int deltaTime = currentTime - startTime;
 
     int signLeft;
     int signRight;
 
-    targetLeft *= INCHES_TO_TICKS_CONSTANT_LRS;
-    targetRight *= INCHES_TO_TICKS_CONSTANT_LRS;
+    
 
-	double errorLeft = targetLeft - leftEncoder.get_value();
-    double errorRight = targetRight - rightEncoder.get_value();
+           leftEncoder.reset();
+           rightEncoder.reset();
+           midEncoder.reset();
+
+		   	 double errorLeft = ticks - leftEncoder.get_value();
+ double errorRight = ticks - rightEncoder.get_value();
 	double prevErrorLeft = 0;
 	double prevErrorRight = 0;
 
@@ -29,8 +32,8 @@ void myPIDstraight(double targetLeft, double targetRight, int tolerance, double 
         signLeft = (errorLeft > 0) - (errorLeft < 0); // + or -
         signRight = (errorRight > 0) - (errorRight < 0);
 
-  errorLeft = targetLeft - leftEncoder.get_value();
-  errorRight = targetRight - rightEncoder.get_value();
+  errorLeft = ticks - leftEncoder.get_value();
+  errorRight = ticks - rightEncoder.get_value();
 
  double integralLeft = integralLeft + errorLeft;
  double integralRight = integralRight + errorRight;
@@ -38,14 +41,14 @@ void myPIDstraight(double targetLeft, double targetRight, int tolerance, double 
 
 
 
- if (errorLeft == 0 or leftEncoder.get_value() > targetLeft) {
+ if (errorLeft == 0 or leftEncoder.get_value() > ticks) {
  integralLeft = 0;
  }
  if (errorLeft > 20){
  integralLeft = 0;
  }
 
- if (errorRight == 0 or rightEncoder.get_value() > targetRight) {
+ if (errorRight == 0 or rightEncoder.get_value() > ticks) {
  integralRight = 0;
  }
  if (errorRight > 20){
@@ -61,6 +64,10 @@ void myPIDstraight(double targetLeft, double targetRight, int tolerance, double 
  double powerLeft =  errorLeft*kP + integralLeft*kI + derivativeLeft*kD;
  double powerRight =  errorRight*kP + integralRight*kI + derivativeRight*kD;
 
+// if (abs(inertial.get_rotation()) > 4) {
+//     powerLeft -= ;
+//     powerRight += inertial.get_rotation() * 2;
+// }
 
         int acc = 8;
         velCap = velCap + acc;  //slew rate
@@ -76,12 +83,19 @@ void myPIDstraight(double targetLeft, double targetRight, int tolerance, double 
 
     double degrees_error = inertial.get_rotation() - degrees;
 
-    set_drive_voltage(powerLeft - (degrees_error * 4), powerRight + (degrees_error * 4));
+ frontLeft = powerLeft - (degrees_error * 3.5);
+ midLeft = powerLeft - (degrees_error * 3.5) ;
+ backLeft = powerLeft - (degrees_error * 3.5);
 
-
+ frontRight = powerRight + (degrees_error * 3.5);
+ midRight = powerRight + (degrees_error * 3.5);
+ backRight = powerRight + (degrees_error * 3.5);
+//  if(frontLeft.get_current_draw() < 100 && frontRight.get_current_draw() < 100) {
+// 	 break;
+//  }
  pros::delay(20);
  }
- reset_drive();
+ set_drive_voltage(0,0);
 }
 
 void myPIDturn(int degrees, double kP, double kD, double time)
@@ -126,10 +140,14 @@ void myPIDturn(int degrees, double kP, double kD, double time)
 
 }
 
-void move_to_point(std::vector<double> points, std::vector<double> margins, int mode, int time) {
+void move_to_point(std::vector<double> points, std::vector<double> margins, int mode, int time, std::vector<double> gains) {
 
-    double targetX = INCHES_TO_TICKS_CONSTANT_LRS * points[0]; 
-    double targetY = INCHES_TO_TICKS_CONSTANT_LRS * points[1];   
+    double targetX = points[0] * INCHES_TO_TICKS_CONSTANT_LRS; 
+    double targetY = points[1] * INCHES_TO_TICKS_CONSTANT_LRS;   
+
+
+    double currentX = gPosition.x * INCHES_TO_TICKS_CONSTANT_LRS;
+    double currentY = gPosition.y * INCHES_TO_TICKS_CONSTANT_LRS;
 
     // calculating the triangle
     double h_mag = sqrt(pow(targetX - gPosition.x, 2) + pow(targetY - gPosition.y, 2)); // distance formula
@@ -178,8 +196,10 @@ void move_to_point(std::vector<double> points, std::vector<double> margins, int 
     default:
         break;
     }
-
-    myPIDturn(error_theta, 1, .1, 1000);
+    
+    if(fabs(error_theta > 20)) {
+        myPIDturn(error_theta, 1, .1, 1000);
+    }
 
     switch (mode)
     {
@@ -187,37 +207,61 @@ void move_to_point(std::vector<double> points, std::vector<double> margins, int 
         /* code */
         break;
     case 1: // PID
-        while (fabs(targetX - gPosition.x) > margins[0] && fabs(targetY - gPosition.y) > margins[1] && deltaTime < time)
+        while (fabs(targetY - gPosition.y) > margins[1] && deltaTime < time)
         {
+            currentX = gPosition.x * INCHES_TO_TICKS_CONSTANT_LRS;
+            currentY = gPosition.y * INCHES_TO_TICKS_CONSTANT_LRS;
+
+
             // h_mag = sqrt(pow(targetX - gPosition.x, 2) + pow(targetY - gPosition.y, 2)); // distance formula
             currentTime = pros::millis();
             deltaTime = currentTime - startTime;
 
-            double kP_x = .2;
-            double kP_y = .5;
+            double kP_x = gains[0];
+            double kI_x = gains[1];
+            double kD_x = gains[2];
+            
+            double kP_y = gains[3];
+            double kI_y = gains[4];
+            double kD_y = gains[5];
+
 
             double error_x;
-            double power_x;
             double error_y;
+
+            double power_x;
             double power_y;
 
+            double prevError_x;
+            double prevError_y;
+
             // X AXIS PID
-            if (fabs(targetX - gPosition.x) > margins[0])
+            if (fabs(targetX - currentX) > margins[0])
             {
-                double error_x = targetX - gPosition.x;
-                double power_x = error_x * kP_x;
+                error_x = targetX - gPosition.x;
+                double deriv_x = error_x - prevError_x;
+
+                power_x = (error_x * kP_x) + (deriv_x * kD_x);
+                prevError_x = error_x; 
             }
             
             // Y AXIS PID
-            if (fabs(targetY - gPosition.y) > margins[0])
+            if (fabs(targetY - currentY) > margins[1])
             {
-                double error_y = targetY - gPosition.y;
-                double power_y = error_y * kP_y;
+
+                error_y = targetY - currentY;
+                double deriv_y = error_y - prevError_y;
+                
+                power_y = (error_y * kP_y) + (deriv_y * kD_y);
+                prevError_y = error_y;
+                
             }
             
             set_drive_voltage(power_y + power_x, power_y - power_x);
+
             pros::delay(10);
         }
+        set_drive_voltage(0,0);
         break;
     default:
         break;

@@ -1,7 +1,7 @@
 #include "main.h"
 
 // tracking wheel diameters in inches 
-#define TRACKING_WHEEL_DIAMETER 2.8
+#define TRACKING_WHEEL_DIAMETER 2.77
 
 //                                           +-+  Center of rotation (CoR)
 //                                           |
@@ -23,9 +23,9 @@
 //                               left / right tracking wheels
 
 // the distances between the tracking wheels and tracking center of the robot in inches (as shown above)
-#define SIDE_DISTANCE_LEFT (7.0 + 1.0/16.0) / 2.07
-#define SIDE_DISTANCE_RIGHT (7.0 + 1.0/16.0) / 2.07
-#define FORWARDS_DISTANCE_BACK 2
+#define SIDE_DISTANCE_LEFT ((8.0 + 6.7/16.0) / 2.0)
+#define SIDE_DISTANCE_RIGHT ((8.0 + 6.7/16.0) / 2.0)
+#define FORWARDS_DISTANCE_BACK 0.5
 
 // the number of ticks per rotations of the tracking wheel - analogous to degrees on a vex quadrature encoder
 #define TICKS_PER_ROTATION_TRACKING 360.0

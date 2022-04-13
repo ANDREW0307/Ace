@@ -12,15 +12,17 @@ pros::Motor arm_motor(16, pros::E_MOTOR_GEARSET_18, true);
 
 pros::Motor conveyor(20, pros::E_MOTOR_GEARSET_06, false);
 
-pros::Motor inertial(7);
+pros::IMU inertial(12);
 
 pros::ADIDigitalOut tilter_pistons('G'); 
 pros::ADIDigitalOut back_claw_piston('F'); 
-pros::ADIDigitalOut front_claw_piston('E');
+pros::ADIDigitalOut front_claw_piston1('E');
+pros::ADIDigitalOut front_claw_piston2('H');
+
 
 // quad encoders
-pros::ADIEncoder leftEncoder ('E', 'F', false);
-pros::ADIEncoder midEncoder ('G', 'H', false);
-pros::ADIEncoder rightEncoder ({6, 'C', 'D'}, true);
+pros::ADIEncoder leftEncoder ('A', 'B', true);
+pros::ADIEncoder midEncoder ({11, 'A', 'B'}, false);
+pros::ADIEncoder rightEncoder ('C', 'D', false);
 
 pros::Controller master(pros::E_CONTROLLER_MASTER);

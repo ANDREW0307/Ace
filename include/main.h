@@ -88,6 +88,7 @@ void opcontrol(void);
 #include "ace.hpp"
 #include "globals.hpp"
 #include "motion.hpp"
+#include "autos.hpp"
 #endif
 
 #endif  // _PROS_MAIN_H_

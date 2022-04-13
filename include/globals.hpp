@@ -16,7 +16,9 @@ extern pros::IMU inertial;
 // piston solenoid control 
 extern pros::ADIDigitalOut tilter_pistons;
 extern pros::ADIDigitalOut back_claw_piston;
-extern pros::ADIDigitalOut front_claw_piston;
+extern pros::ADIDigitalOut front_claw_piston1;
+extern pros::ADIDigitalOut front_claw_piston2;
+
 
 // quad encoders
 extern pros::ADIEncoder leftEncoder;

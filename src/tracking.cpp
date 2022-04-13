@@ -2,7 +2,7 @@
 
 
 sPos gPosition;
-void positionTracking(void* ptr) {
+void positionTracking(void *ptr) {
 
 	while (true)
 	{
@@ -44,7 +44,7 @@ void positionTracking(void* ptr) {
 		double cosP = cos(p);
 		double sinP = sin(p);
 
-		// Update the global position - note: std::atomic doesn't recognize "++"" and "--", so I have to write it this way
+		// Update the global position - note: std::atomic doesn't recognize "+="" and "-=", so I have to write it this way
 		gPosition.y = gPosition.y + (h * cosP);
 		gPosition.x = gPosition.x + (h * sinP);
 
@@ -60,15 +60,15 @@ void positionTracking(void* ptr) {
 		std::string xCoord = std::to_string(gPosition.x);
 		std::string yCoord = std::to_string(gPosition.y);
 
-		pros::lcd::set_text(2, std::to_string(gPosition.theta * (180/M_PI)));
-		pros::lcd::set_text(3, std::to_string(leftEncoder.get_value()));
-		pros::lcd::set_text(4, std::to_string(midEncoder.get_value()));
-		pros::lcd::set_text(5, std::to_string(rightEncoder.get_value()));
-		pros::lcd::set_text(6, "X: " + xCoord);
-		pros::lcd::set_text(7, "Y: " + yCoord);
+		// pros::lcd::set_text(2, std::to_string(gPosition.theta * (180/M_PI)));
+		// pros::lcd::set_text(3, std::to_string(leftEncoder.get_value()));
+		// pros::lcd::set_text(4, std::to_string(midEncoder.get_value()));
+		// pros::lcd::set_text(5, std::to_string(rightEncoder.get_value()));
+		// pros::lcd::set_text(6, "X: " + xCoord);
+		// pros::lcd::set_text(7, "Y: " + yCoord);
 
 		// 20 ms refresh rate 
-		pros::delay(5);
+		pros::delay(10);
 	}
 }
 
