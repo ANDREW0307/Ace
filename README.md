@@ -6,5 +6,5 @@ src/tracking.cpp contains the tracking algorithm that determines the global posi
 
 most files in "include" that end with .hpp should provide a brief overview of how the respectively named cpp file functions 
 
-instances of this code in action can be found at https://vex.pwa.systems/research.html
+instances of this code in action can be found at https://vex.pwa.systems/research.html by searching for "55645X" in the page
     ex. 07:47:30
