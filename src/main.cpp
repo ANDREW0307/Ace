@@ -1,7 +1,24 @@
 #include "main.h"
 
 
+using namespace okapi;
 
+std::shared_ptr<ChassisController> myChassis =
+  ChassisControllerBuilder()
+    .withMotors({14, 13, 15}, {17, 19, 18})
+    // Green gearset, 4 in wheel diam, 11.5 in wheel track
+    .withDimensions({AbstractMotor::gearset::green, 5.0/7.0}, {{4.125_in, 13.4375_in}, imev5GreenTPR})
+    .build();
+
+std::shared_ptr<AsyncMotionProfileController> profileController =
+  AsyncMotionProfileControllerBuilder()
+    .withLimits({
+      0.75, // Maximum linear velocity of the Chassis in m/s
+      1.25, // Maximum linear acceleration of the Chassis in m/s/s
+      7.0 // Maximum linear jerk of the Chassis in m/s/s/s
+    })
+    .withOutput(myChassis)
+    .buildMotionProfileController();
 
 
 /**
@@ -38,12 +55,14 @@ void back_mogo_control(void *ptr) {
 }
 
 void initialize() {
-	
 	set_drive_coast();
 	pros::lcd::initialize();
 	
+	leftEncoder.reset();
+	midEncoder.reset();
+	rightEncoder.reset();
 	begin_task("backMogoTask", back_mogo_control);
-	begin_task("tracking", positionTracking);
+
 
 }
 
@@ -66,7 +85,24 @@ void disabled() {
  */
 void competition_initialize() {
 	set_drive_coast();
+	arm_motor.set_brake_mode(MOTOR_BRAKE_HOLD);
 
+	inertial.reset();
+	while (inertial.is_calibrating()) 
+	{
+		pros::delay(10);
+	}
+	
+
+	leftEncoder.reset();
+	midEncoder.reset();
+	rightEncoder.reset();
+
+	back_let_go();
+	front_let_go();
+
+	begin_task("tracking", positionTracking);
+	arm_motor.tare_position();
 }
 
 /**
@@ -80,37 +116,91 @@ void competition_initialize() {
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
+
+
+
+
 void autonomous() {
 
-	arm_motor.set_brake_mode(MOTOR_BRAKE_HOLD);
-	back_claw_piston.set_value(false);
-	tilter_pistons.set_value(true);
-	// move_to_point({0, 20, 0}, {0, 1, 0}, 1, 13000, {0, 0, 0, .2, 0, 0});
-	// right side tax fraud
 
-	// front_claw_piston.set_value(false);
-	// tilter_pistons.set_value(true);
-	// back_claw_piston.set_value(false);
-	// arm_motor.move_relative(-100, 100);
-	// arm_motor.tare_position();
-	// myPIDstraight(1940, 1, .29, 0, 1.45, 0, 1400);
-	// front_claw_piston.set_value(true);
-	// arm_motor.move_absolute(600, 200);
-	// pros::delay(200);
-	arm_motor.move_absolute(-100, 200);
-	// front_claw_piston.set_value(false);
-	set_drive_voltage(127,127);
-	pros::delay(890);
+
+	// TAX FRAUD RIGHT
+
+
+
+	arm_motor = 127;
+	front_let_go();
+	back_let_go();
+	pros::delay(300);
+	arm_motor.move_absolute(-100, 600);
+
+
+	move_to_point_PID({0,51, 0}, {2, .25, 5}, {{0.01, 0}, {0.13, 0.05}, {0.1, 0}}, 10000);
+	front_clamp_on();
+	pros::delay(200);
+	arm_motor.move_absolute(ABOVE_GROUND, 600);
+	move_to_point_PID({0, 5, 0}, {2, .25, 5}, {{0.01, 0}, {0.16, 0.15}, {0.1, 0}}, 1000);
+	myPIDturn(-80, 4, .1, 1000);
+	arm_motor.move_absolute(200, 600);
+	myPIDstraight(600, 50, .2, 0, .2, inertial.get_rotation(), 1000);
+	front_let_go();
+	arm_motor.move_absolute(-100, 600);
+	pros::delay(300);
+	myPIDstraight(-200, 30, .2, 0, .1, inertial.get_rotation(), 1000);
+	myPIDturn(-5, 4, .05, 1000);
+	// move_to_point_PID({24, 44, -45}, {1, 0.5, 1}, {{.01, 0.1}, {1.4, 0.09}, {.0001, 0}}, 4000);
+		// positive is to the left
+
+
+	QAngle angle = fabs(inertial.get_rotation()) * degree;
+	QLength posX = totalPositionX * inch;
+	QLength posY = totalPositionY * inch;
+
+	// okapi conversion task so that these can be used whenever i want motion profiling
+	// add another mode to move to point
+
+	profileController->generatePath(
+		// {{posX, posY, 0_deg}, {24_in, 24_in, 0_deg}}, "A");
+		{{posY, posX, angle}, {45_in, 38_in, 50_deg}}, "A");
+
+	profileController->setTarget("A");
+	profileController->waitUntilSettled();
+
+	front_clamp_on();
+	arm_motor.move_absolute(ABOVE_GROUND, 600);
+
+
+	 angle = fabs(inertial.get_rotation()) * degree;
+	 posX = totalPositionX * inch;
+	 posY = totalPositionY * inch;
+
+	profileController->generatePath(
+		// {{40_in, 20_in, 45_deg}, {18_in, -20_in, 90_deg}}, "B");
+		{{posY, posX, angle}, {25_in, -20_in, 90_deg}}, "B");
+
+
+	profileController->setTarget("B", true, true);
+	profileController->waitUntilSettled();
+
+	set_drive_voltage(-80, -50);
+	pros::delay(600);
 	set_drive_voltage(0,0);
-	pros::delay(100);
-	// front_claw_piston.set_value(true);
-	arm_motor.move_absolute(2000, 200);
-	myPIDstraight(-1000, 10, .4, 0, .1, 10, 2000);
+	back_clamp_on();
+	arm_motor.move_absolute(ABOVE_GROUND + 300, 600);
+	conveyor.move_velocity(600);
+
+	set_drive_voltage(70, 70);
+	pros::delay(200);
+	myPIDstraight(1400, 20, .2, 0, .2, 0, 3000);
+	myPIDstraight(-1400, 20, .2, 0, .2, 0, 3000);
+
+	back_let_go();
+
+
+
+
+
 	
-
-
-	
-
 }
 
 
@@ -130,32 +220,26 @@ void autonomous() {
 void opcontrol() {
 
 
-	arm_motor.set_brake_mode(MOTOR_BRAKE_HOLD);
+		arm_motor.set_brake_mode(MOTOR_BRAKE_HOLD);
 	set_drive_coast();
 
 	int tilter_control_value = 0;
 	int back_claw_control_value = 0;
 
-	front_let_go();
+	front_clamp_on();
 
 	back_claw_piston.set_value(false);
 	tilter_pistons.set_value(false);
 
-	front_claw_on = false;
+	front_claw_on = true;
 	back_claw_on = false;
 	tilter_on = true;
 	back_mech_out = true;
 
 	int brakeType_toggle = 0;
 
-
 	while (true) {
 		// pros::lcd::print(4, "GOD BLESS ARSENAL");
-		// pros::lcd::set_text(5, "left encoder" + std::to_string(leftEncoder.get_value()));
-		// pros::lcd::set_text(6, "right encoder" + std::to_string(rightEncoder.get_value()));
-		// pros::lcd::set_text(7, "mid encoder" + std::to_string(midEncoder.get_value()));
-
-		set_drive_coast();
 
 
 		bool wasPressedTilter = master.get_digital_new_press(DIGITAL_DOWN);
@@ -212,17 +296,17 @@ void opcontrol() {
 		bool isPressedConveyorREV = master.get_digital_new_press(DIGITAL_RIGHT);
 
 		if(isPressedConveyorFWD && conveyor.get_target_velocity() == 0){
-			conveyor.move_velocity(600);
-		} else if(isPressedConveyorFWD && conveyor.get_target_velocity() == 600){
+			conveyor.move_velocity(-600);
+		} else if(isPressedConveyorFWD && conveyor.get_target_velocity() == -600){
 			conveyor.move_velocity(0);
 		} else if(isPressedConveyorREV && conveyor.get_target_velocity() == 0) {
-			conveyor.move_velocity(-600);
-		} else if(isPressedConveyorREV && conveyor.get_target_velocity() == -600) {
-			conveyor.move_velocity(0);
-		} else if(isPressedConveyorFWD && conveyor.get_target_velocity() == -600) {
 			conveyor.move_velocity(600);
 		} else if(isPressedConveyorREV && conveyor.get_target_velocity() == 600) {
+			conveyor.move_velocity(0);
+		} else if(isPressedConveyorFWD && conveyor.get_target_velocity() == 600) {
 			conveyor.move_velocity(-600);
+		} else if(isPressedConveyorREV && conveyor.get_target_velocity() == -600) {
+			conveyor.move_velocity(600);
 		}
 
 
@@ -238,14 +322,14 @@ void opcontrol() {
 
 
 
-		bool wasPressedBrakeToggle = master.get_digital_new_press(DIGITAL_B);
+		bool wasPressedBrakeToggle = master.get_digital_new_press(DIGITAL_A);
 
-		if (wasPressedBrakeToggle && brakeType_toggle % 2 == 0) {
+		if (wasPressedBrakeToggle && brakeType_toggle == 0) {
 			set_drive_hold();
 			brakeType_toggle++;
-		} else if (wasPressedBrakeToggle && brakeType_toggle % 2 == 1) {
+		} else if (wasPressedBrakeToggle && brakeType_toggle == 1) {
 			set_drive_coast();
-			brakeType_toggle++;
+			brakeType_toggle--;
 		}
 
 

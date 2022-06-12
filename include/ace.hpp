@@ -1,6 +1,6 @@
 #include "main.h"
 
-
+#define ABOVE_GROUND 200
 #define RAMPING_HEIGHT 200 
 #define CLEAR_RAMP_HEIGHT 1000
 

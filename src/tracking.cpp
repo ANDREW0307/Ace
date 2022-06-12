@@ -1,73 +1,96 @@
 #include "main.h"
 
+sPos gPosition;	
 
-sPos gPosition;
+double totalPositionX = 0;
+double totalPositionY = 0;
+double totalPositionTheta = 0;
+
+double deltaPositionX = 0;
+double deltaPositionY = 0;
+
+double prevLE = 0;
+double prevRE = 0;
+double prevSE = 0;
+
+
+
 void positionTracking(void *ptr) {
 
 	while (true)
 	{
-			
-		double L = (leftEncoder.get_value() - gPosition.leftLst) * TICKS_TO_INCHES_CONSTANT_LR; // The amount the left side of the robot moved
-		double R = (rightEncoder.get_value()  - gPosition.rightLst) * TICKS_TO_INCHES_CONSTANT_LR; // The amount the right side of the robot moved
-		double S = (midEncoder.get_value()  - gPosition.backLst) * TICKS_TO_INCHES_CONSTANT_S; // The amount the back side of the robot moved
+
+
+		double currentLE = leftEncoder.get_value();
+		double currentRE = rightEncoder.get_value();
+		double currentSE = midEncoder.get_value();
+
+
+		double deltaL = (currentLE - prevLE) * TICKS_TO_INCHES; 
+		double deltaR = (currentRE  - prevRE) * TICKS_TO_INCHES;
+		double deltaS = (currentSE  - prevSE) * TICKS_TO_INCHES; 
 
 		// Update the last values
-		gPosition.leftLst = leftEncoder.get_value();
-		gPosition.rightLst = rightEncoder.get_value();
-		gPosition.backLst = midEncoder.get_value();
+		prevLE = currentLE;
+		prevRE = currentRE;
+		prevSE = currentSE;
 
-		double h; // The hypotenuse of the triangle formed by the middle of the robot on the starting position and ending position and the middle of the circle it travels around
-		double i; // Half on the angle that I've traveled
-		double h2; // The same as h but using the back instead of the side wheels
-		double a = ((L - R) / (SIDE_DISTANCE_LEFT + SIDE_DISTANCE_RIGHT)); // The angle that I've traveled
-		// double a = ((-inertial.get_rotation() * (M_PI/180)) + ((L - R) / (SIDE_DISTANCE_LEFT + SIDE_DISTANCE_RIGHT))) / 2; // The angle that I've traveled
-		// double a = (-inertial.get_rotation() * (M_PI/180)); // The angle that I've traveled
+		float deltaTheta = ((deltaL - deltaR) / (OFFSET_L + OFFSET_R)); 
 		
-		if (a)
+		if (deltaTheta)
 		{
-			double r = R / a; // The radius of the circle the robot travel's around with the right side of the robot
-			i = a / 2.0;
-			double sinI = sin(i);
-			h = ((r + SIDE_DISTANCE_RIGHT) * sinI) * 2.0;
-
-			double r2 = S / a; // The radius of the circle the robot travel's around with the back of the robot
-			h2 = ((r2 + FORWARDS_DISTANCE_BACK) * sinI) * 2.0;
+			deltaPositionX = 2 * sin(deltaTheta/2) * ((deltaS/deltaTheta) + OFFSET_S);
+			deltaPositionY = 2 * sin(deltaTheta/2) * ((deltaR/deltaTheta) + OFFSET_R);
 		}
 		else
 		{
-			h = R;
-			i = 0;
-
-			h2 = S;
+			deltaPositionX = deltaS;
+			deltaPositionY = deltaR;
 		}
-		double p = i + gPosition.theta; // The global ending angle of the robot
-		double cosP = cos(p);
-		double sinP = sin(p);
+		float thetaM = deltaTheta/2 + totalPositionTheta; 
 
-		// Update the global position - note: std::atomic doesn't recognize "+="" and "-=", so I have to write it this way
-		gPosition.y = gPosition.y + (h * cosP);
-		gPosition.x = gPosition.x + (h * sinP);
+		// cartesian (x,y) to polar (r, theta)
+		double rPolar = sqrt(pow(deltaPositionX, 2) + pow(deltaPositionY, 2));
+		double newThetaPolar = atan2(deltaPositionX, deltaPositionY) - thetaM;
 
-		gPosition.y = gPosition.y + (h2 * -sinP); // -sin(x) = sin(-x)
-		gPosition.x = gPosition.x + (h2 * cosP); // cos(x) = cos(-x)
+		// polar back to cartesian
+		// deltaPositionX = rPolar * sin(newThetaPolar);
+		// deltaPositionY = rPolar * cos(newThetaPolar);
 
-		gPosition.theta = gPosition.theta + a;
+		totalPositionY += deltaPositionY * cos(thetaM);
+		totalPositionX += deltaPositionY * sin(thetaM);
 
+		totalPositionY += deltaPositionX * -sin(thetaM); // -sin(x) = sin(-x)
+		totalPositionX += deltaPositionX * cos(thetaM); // cos(x) = cos(-x)
 
+		
 
+			// totalPositionX += deltaPositionX;
+			// totalPositionY += deltaPositionY;
+
+		totalPositionTheta += deltaTheta;
 
 		// printing values to the brain screen for troubleshooting
-		std::string xCoord = std::to_string(gPosition.x);
-		std::string yCoord = std::to_string(gPosition.y);
+		std::string xCoord = std::to_string(totalPositionX);
+		std::string yCoord = std::to_string(totalPositionY);
 
-		// pros::lcd::set_text(2, std::to_string(gPosition.theta * (180/M_PI)));
-		// pros::lcd::set_text(3, std::to_string(leftEncoder.get_value()));
-		// pros::lcd::set_text(4, std::to_string(midEncoder.get_value()));
-		// pros::lcd::set_text(5, std::to_string(rightEncoder.get_value()));
-		// pros::lcd::set_text(6, "X: " + xCoord);
-		// pros::lcd::set_text(7, "Y: " + yCoord);
+		// std::cout << ( std::to_string(totalPositionTheta * (180/M_PI))) << std::endl;
+		// std::cout << ( std::to_string(leftEncoder.get_value())) << std::endl;
+		// std::cout << ( std::to_string(midEncoder.get_value())) << std::endl;
+		// std::cout << ( std::to_string(rightEncoder.get_value())) << std::endl;
+		// std::cout << ( "X: " + xCoord) << std::endl;
+		// std::cout << ( "Y: " + yCoord) << std::endl;
 
-		// 20 ms refresh rate 
+
+
+		// pros::lcd::set_text(1, std::to_string(midEncoder.get_value()));
+		// pros::lcd::set_text(2, std::to_string(leftEncoder.get_value()));
+		// pros::lcd::set_text(3, std::to_string(rightEncoder.get_value()));
+		// pros::lcd::set_text(4, std::to_string(totalPositionTheta * (180/M_PI)));
+
+		pros::lcd::set_text(5, "X: " + xCoord);
+		pros::lcd::set_text(6, "Y: " + yCoord);
+
 		pros::delay(10);
 	}
 }

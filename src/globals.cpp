@@ -10,7 +10,7 @@ pros::Motor backRight(18, pros::E_MOTOR_GEARSET_18, false);
 
 pros::Motor arm_motor(16, pros::E_MOTOR_GEARSET_18, true);
 
-pros::Motor conveyor(20, pros::E_MOTOR_GEARSET_06, false);
+pros::Motor conveyor(20, pros::E_MOTOR_GEARSET_06, true);
 
 pros::IMU inertial(12);
 
